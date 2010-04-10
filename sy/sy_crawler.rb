@@ -11,7 +11,7 @@ class Visualization
   attr_accessor :online_link
   attr_accessor :download_link
 
-  # TODO: Improve link crypted links extraction
+  # TODO: Improve crypted links extraction
   def initialize node
     @language = node[1].content
     @subtitles = node[2].content
@@ -64,8 +64,8 @@ class Episode
 
   def to_yml
     {
-      :title => @title,
-      :visualizations => @visualizations.collect { |v| v.to_yml }
+      :visualizations => @visualizations.collect { |v| v.to_yml },
+      :title => @title
     }
   end
 
@@ -83,8 +83,8 @@ class Serie
 
   def to_yml
     {
-      :name => @name,
-      :episodes => @episodes.collect { |e| e.to_yml }
+      :episodes => @episodes.collect { |e| e.to_yml },
+      :name => @name
     }
   end
 
@@ -145,10 +145,13 @@ Anemone.crawl(root, :storage => Anemone::Storage.PStore(STORE_FILE), :verbose =>
   anemone.after_crawl do |page|
     File.open(DUMP_FILE, 'w') do |f|
       obj = series.collect do |s|
+        # Add related episodes
         episodes.inject(s.episodes) do |acum,e|
           acum << e if s.name.downcase == e.serie.downcase
         end
-      end.to_yml
+        # Serialize
+        s.to_yml
+      end
 
       YAML.dump(obj, f)
     end
