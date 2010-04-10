@@ -11,6 +11,7 @@ class Visualization
   attr_accessor :online_link
   attr_accessor :download_link
 
+  # TODO: Improve link crypted links extraction
   def initialize node
     @language = node[1].content
     @subtitles = node[2].content
@@ -20,6 +21,7 @@ class Visualization
     doc = Nokogiri::HTML(Harmony::Page.fetch(crypted_online_link).to_html)
     @online_link = doc.xpath('//span/b/a')[0].attribute('href').content
 
+=begin
     download_node = doc.xpath('//h3/a')[1]
     if download_node
       crypted_download_link = download_node.attribute('href').content
@@ -27,6 +29,7 @@ class Visualization
       doc = Nokogiri::HTML(Harmony::Page.fetch(crypted_download_link).to_html)
       @download_link = doc.xpath('//h3/a')[0].attribute('href').content
     end
+=end
   end
 
   def to_yml
@@ -98,17 +101,35 @@ EPISODE_PATTERN = "#{URL}\/capitulo\/.*\/(.*)\/\\d+\/"
 STORE_FILE = "links.pstore"
 DUMP_FILE = "series.yml"
 
-# Starts crawling process
-Anemone.crawl(URL, :storage => Anemone::Storage.PStore(STORE_FILE),
-                   :user_agent => UA,
-                   :verbose => true) do |anemone|
+begin
+  # Make sure that the first option is a URL we can crawl
+  # and have a valid serie format
+  url = URI(ARGV[0])
+  if url.to_s =~ /#{SERIE_PATTERN}/
+    root = url.to_s
+    pattern = /#{EPISODE_PATTERN}/
+  else
+    root = URL
+    pattern = /#{SERIE_PATTERN}|#{EPISODE_PATTERN}/
+  end
+rescue
+  puts <<-INFO
+Usage:
+ruby sy_crawler.rb <url>
+INFO
+  exit(0)
+end
 
+# Starts crawling process
+Anemone.crawl(root, :storage => Anemone::Storage.PStore(STORE_FILE), :verbose => true) do |anemone|
+
+  # TODO: Use PStore to reduce the amount of memory
   series = []
   episodes = []
 
   # Focus crawler to follow series or episodes urls
   anemone.focus_crawl do |page|
-    page.links.select { |link| link.to_s =~ /#{SERIE_PATTERN}|#{EPISODE_PATTERN}/ }
+    page.links.select { |link| link.to_s =~ pattern }
   end
 
   anemone.on_pages_like(/#{SERIE_PATTERN}/) do |page|
